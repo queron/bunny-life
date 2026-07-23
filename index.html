@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Bunny Life - A cute pixelated 2D top-down farming simulator starring a bright yellow bunny farmer with floppy ears. Till, plant, water, harvest, and trade crops in a cozy pixel world.">
+  <title>Bunny Life 🥕 - Pixelated Bunny Farming Simulator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-container">
+    
+    <!-- TOP HUD OVERLAY -->
+    <header id="top-hud">
+      <div class="hud-pill">
+        <span class="icon">📅</span>
+        <span id="day-display" class="label">Day 1</span>
+      </div>
+
+      <div class="hud-pill">
+        <span class="icon">⏰</span>
+        <span id="clock-display" class="label">06:00 AM</span>
+      </div>
+
+      <div class="hud-pill">
+        <span class="icon">🪙</span>
+        <span id="coins-display" class="label">50</span>
+      </div>
+
+      <div class="hud-pill">
+        <span class="icon">⚡</span>
+        <div class="stamina-container">
+          <div id="stamina-fill" class="stamina-fill"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ACTION BUTTONS -->
+    <div class="top-actions">
+      <button id="open-shop-btn" class="icon-btn">🏬 Market Shop</button>
+      <button id="audio-toggle-btn" class="icon-btn">🔊 Sound On</button>
+    </div>
+
+    <!-- CANVAS WRAPPER -->
+    <main id="canvas-wrapper">
+      <canvas id="gameCanvas"></canvas>
+    </main>
+
+    <!-- QUICKBAR INVENTORY -->
+    <footer id="quickbar-container">
+      <div id="item-tooltip" class="item-name-tooltip">Hoe</div>
+      <div id="quickbar"></div>
+    </footer>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="notification-toast">Welcome to Bunny Life! 🥕</div>
+
+    <!-- DAY TRANSITION OVERLAY -->
+    <div id="day-transition-overlay">
+      <div class="day-title">Zzz... Sleeping 😴</div>
+      <div class="day-subtitle">Restoring Stamina & Growing Crops...</div>
+    </div>
+
+    <!-- SHOP MODAL -->
+    <div id="shop-modal" class="modal-overlay">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title">🏬 Bunny Market Stall</div>
+          <button id="close-shop-btn" class="close-btn">✖</button>
+        </div>
+        <div class="modal-body">
+          <div class="shop-grid" id="shop-grid"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="src/game.js"></script>
+</body>
+</html>

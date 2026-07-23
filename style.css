@@ -1,0 +1,487 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&display=swap');
+
+:root {
+  --bg-color: #1a1c23;
+  --panel-bg: rgba(28, 33, 48, 0.92);
+  --panel-border: #4a5568;
+  --accent-yellow: #ffee00;
+  --accent-green: #48bb78;
+  --accent-orange: #ed8936;
+  --accent-pink: #ff80ab;
+  --text-color: #f7fafc;
+  --text-muted: #a0aec0;
+  --pixel-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: 'Silkscreen', cursive, sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #11141a;
+}
+
+#canvas-wrapper {
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 0 6px #2d3748;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+canvas#gameCanvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background-color: #5b8c35;
+  cursor: crosshair;
+}
+
+/* UI Overlay Header */
+#top-hud {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  z-index: 10;
+  background: var(--panel-bg);
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: 3px solid #4a5568;
+  box-shadow: var(--pixel-shadow);
+  backdrop-filter: blur(4px);
+  align-items: center;
+}
+
+.hud-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  background: rgba(0,0,0,0.3);
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 2px solid rgba(255,255,255,0.1);
+}
+
+.hud-pill .icon {
+  font-size: 18px;
+}
+
+.hud-pill .label {
+  color: var(--accent-yellow);
+}
+
+/* Stamina Bar */
+.stamina-container {
+  width: 120px;
+  height: 14px;
+  background: #2d3748;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid #1a202c;
+  position: relative;
+}
+
+.stamina-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #48bb78, #38a169);
+  transition: width 0.2s ease;
+}
+
+/* Controls / Audio Buttons */
+.top-actions {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 10;
+}
+
+.icon-btn {
+  background: var(--panel-bg);
+  border: 3px solid #4a5568;
+  color: var(--text-color);
+  font-family: 'Silkscreen', cursive;
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: var(--pixel-shadow);
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn:hover {
+  transform: translateY(-2px);
+  background: #2d3748;
+  border-color: var(--accent-yellow);
+}
+
+.icon-btn:active {
+  transform: translateY(2px);
+  box-shadow: 1px 1px 0px rgba(0,0,0,0.5);
+}
+
+/* Quickbar Inventory at Bottom */
+#quickbar-container {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+#quickbar {
+  display: flex;
+  gap: 8px;
+  background: var(--panel-bg);
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 4px solid #4a5568;
+  box-shadow: var(--pixel-shadow);
+  backdrop-filter: blur(4px);
+}
+
+.slot {
+  width: 52px;
+  height: 52px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 3px solid #4a5568;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.slot:hover {
+  border-color: #a0aec0;
+  background: rgba(30, 41, 59, 0.9);
+}
+
+.slot.active {
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 12px rgba(255, 238, 0, 0.6);
+  background: rgba(45, 55, 72, 0.95);
+  transform: translateY(-4px);
+}
+
+.slot .item-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.slot .item-count {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 10px;
+  font-family: 'Press Start 2P', monospace;
+  color: #ffffff;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.slot .key-hint {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 9px;
+  color: #718096;
+}
+
+.item-name-tooltip {
+  background: rgba(0, 0, 0, 0.85);
+  color: var(--accent-yellow);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  border: 1px solid #4a5568;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+
+/* Modals (Shop, Inventory, Help) */
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  background: #1a202c;
+  border: 4px solid var(--accent-yellow);
+  border-radius: 16px;
+  width: 620px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+  overflow: hidden;
+}
+
+.modal-header {
+  background: #2d3748;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 3px solid #4a5568;
+}
+
+.modal-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 16px;
+  color: var(--accent-yellow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.close-btn {
+  background: #e53e3e;
+  border: none;
+  color: white;
+  font-family: 'Silkscreen', cursive;
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+}
+
+.close-btn:hover {
+  background: #c53030;
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Shop Tabs & Grid */
+.tab-row {
+  display: flex;
+  gap: 10px;
+  border-bottom: 2px solid #2d3748;
+  padding-bottom: 10px;
+}
+
+.tab-btn {
+  background: #2d3748;
+  border: 2px solid #4a5568;
+  color: var(--text-muted);
+  font-family: 'Silkscreen', cursive;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: var(--accent-yellow);
+  color: #1a202c;
+  font-weight: bold;
+  border-color: #d69e2e;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.shop-item-card {
+  background: #2d3748;
+  border: 2px solid #4a5568;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.shop-item-card:hover {
+  border-color: var(--accent-yellow);
+}
+
+.shop-item-icon-box {
+  width: 48px;
+  height: 48px;
+  background: #1a202c;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #4a5568;
+  flex-shrink: 0;
+}
+
+.shop-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+}
+
+.shop-item-name {
+  font-size: 13px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.shop-item-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.shop-item-price {
+  font-size: 11px;
+  color: var(--accent-yellow);
+  font-family: 'Press Start 2P', monospace;
+}
+
+.buy-sell-btn {
+  background: #38a169;
+  border: 2px solid #276749;
+  color: white;
+  font-family: 'Silkscreen', cursive;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  align-self: center;
+  box-shadow: 2px 2px 0px rgba(0,0,0,0.4);
+}
+
+.buy-sell-btn:hover {
+  background: #48bb78;
+}
+
+.buy-sell-btn.sell {
+  background: #dd6b20;
+  border-color: #9c4221;
+}
+
+.buy-sell-btn.sell:hover {
+  background: #ed8936;
+}
+
+.buy-sell-btn:disabled {
+  background: #4a5568;
+  border-color: #2d3748;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Floating Toast Notification */
+#notification-toast {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  background: rgba(28, 33, 48, 0.95);
+  border: 3px solid var(--accent-yellow);
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  z-index: 150;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: var(--pixel-shadow);
+}
+
+#notification-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Banner overlay for Sleeping / Next Day */
+#day-transition-overlay {
+  position: absolute;
+  inset: 0;
+  background: #000000;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+#day-transition-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#day-transition-overlay .day-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 24px;
+  color: var(--accent-yellow);
+  text-align: center;
+}
+
+#day-transition-overlay .day-subtitle {
+  font-size: 14px;
+  color: #a0aec0;
+}
