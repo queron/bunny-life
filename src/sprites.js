@@ -795,13 +795,3 @@ export function initDecorationSprites() {
     SpriteCache.decorations['shop'] = canvas;
   }
 }
-
-// Master Initialize Function
-export function initAllSprites() {
-  initBunnySprites();
-  initTileSprites();
-  initCropSprites();
-  initToolSprites();
-  initDecorationSprites();
-  console.log('All pixel art sprites initialized successfully!');
-}
