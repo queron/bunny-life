@@ -422,8 +422,8 @@ function updatePlayer() {
 }
 
 // Update Clock & Crop Timers
-function updateGameTime() {
-  state.timeMinutes += 0.15; // Clock speed
+function updateGameTime(dt = 0.016) {
+  state.timeMinutes += dt * 1; // 1 in-game minute = 1 real-life second
   if (state.timeMinutes >= 24 * 60) {
     // Midnight forced sleep
     sleepToNextDay();
@@ -435,7 +435,7 @@ function updateGameTime() {
       const tile = state.grid[r][c];
       if (tile.crop && tile.isWatered && tile.crop.stage < 3) {
         const cData = CROPS_DATA[tile.crop.key];
-        tile.crop.timer += 0.016; // ~60fps increment
+        tile.crop.timer += dt;
         if (tile.crop.timer >= cData.growthTimeSec / 3) {
           tile.crop.stage++;
           tile.crop.timer = 0;
@@ -671,9 +671,14 @@ function renderShopItems() {
 }
 
 // Game Loop
-function gameLoop() {
+let lastFrameTime = 0;
+function gameLoop(timestamp) {
+  if (!lastFrameTime) lastFrameTime = timestamp;
+  const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.1);
+  lastFrameTime = timestamp;
+
   updatePlayer();
-  updateGameTime();
+  updateGameTime(dt);
   render();
   requestAnimationFrame(gameLoop);
 }
