@@ -31,11 +31,208 @@ function drawPixelMap(ctx, map, colors, scale = 1, offsetX = 0, offsetY = 0) {
 // Global Sprite Cache
 export const SpriteCache = {
   bunny: {},
+  waps: {},
   tiles: {},
   crops: {},
   tools: {},
   decorations: {}
 };
+
+// -------------------------------------------------------------
+// WAPS THE YELLOW DOG SPRITE GENERATOR (Matches user drawing!)
+// -------------------------------------------------------------
+export function initWapsSprites() {
+  const C = {
+    'Y': '#FFEE00', // Yellow Coat
+    'y': '#ECC94B', // Yellow Shading
+    'B': '#5D4037', // Brown Eye, Nose & Paws
+    'b': '#8D6E63', // Light brown snout tip
+    'H': '#FF80AB'  // Heart Pink
+  };
+
+  // Waps Idle & Tail Wag frames (32x32 canvas)
+  const wagOffsets = [0, 2, -2];
+  ['idle', 'wag1', 'wag2'].forEach((frameName, index) => {
+    const { canvas, ctx } = createCanvas(32, 32);
+    const wag = wagOffsets[index];
+
+    const pixelMap = [
+      "................................",
+      "......YYYY......................",
+      ".....YBBBYY.....................",
+      "....bBBBBYYY....................",
+      "....bBBBBYYY....................",
+      ".....YBBBYYY....................",
+      "......YYYYYY....................",
+      ".......YYYYY....................",
+      ".......YYYYYYYYYYYYYY...........",
+      ".......YYYYYYYYYYYYYYYY...YY....",
+      ".......YYYYYYYYYYYYYYYYY..YY....",
+      ".......YYYYYYYYYYYYYYYYY..YY....",
+      ".......YYYYYYYYYYYYYYYYYY.YY....",
+      ".......YYYYYYYYYYYYYYYYYYYY.....",
+      ".......YYYYYYYYYYYYYYYYYYY......",
+      ".......YYYYYYYYYYYYYYYYYY.......",
+      ".......YYYY...YYYY...YYYY.......",
+      ".......YYYY...YYYY...YYYY.......",
+      ".......YYYY...YYYY...YYYY.......",
+      ".......YYYY...YYYY...YYYY.......",
+      ".......YYYY...YYYY...YYYY.......",
+      ".......BBBB...BBBB...BBBB.......",
+      ".......BBBB...BBBB...BBBB.......",
+      "................................"
+    ];
+
+    drawPixelMap(ctx, pixelMap, C, 1, 0, 4);
+
+    // Dynamic Tail Wag
+    ctx.fillStyle = '#FFEE00';
+    ctx.fillRect(25, 12 + wag, 6, 4);
+    ctx.fillRect(29, 10 + wag, 3, 4);
+
+    SpriteCache.waps[frameName] = canvas;
+  });
+}
+
+// -------------------------------------------------------------
+// INTERIOR HOUSE TILES & GREEN FURNITURE
+// -------------------------------------------------------------
+export function initInteriorTileSprites() {
+  // Walnut Wall Tile (32x32)
+  {
+    const { canvas, ctx } = createCanvas();
+    ctx.fillStyle = '#4a2c11'; // Base dark walnut
+    ctx.fillRect(0, 0, 32, 32);
+    ctx.fillStyle = '#3d230d'; // Vertical wood grain lines
+    ctx.fillRect(0, 0, 2, 32);
+    ctx.fillRect(10, 0, 2, 32);
+    ctx.fillRect(20, 0, 2, 32);
+    ctx.fillRect(30, 0, 2, 32);
+    ctx.fillStyle = '#5c3818'; // Wood grain highlight
+    ctx.fillRect(4, 0, 4, 32);
+    ctx.fillRect(14, 0, 4, 32);
+    ctx.fillRect(24, 0, 4, 32);
+    // Baseboard trim
+    ctx.fillStyle = '#2a1708';
+    ctx.fillRect(0, 28, 32, 4);
+    SpriteCache.tiles['walnut_wall'] = canvas;
+  }
+
+  // Wood Floor Planks (32x32)
+  {
+    const { canvas, ctx } = createCanvas();
+    ctx.fillStyle = '#7c522b'; // Polished oak
+    ctx.fillRect(0, 0, 32, 32);
+    ctx.fillStyle = '#664120'; // Plank seams
+    ctx.fillRect(0, 15, 32, 1);
+    ctx.fillRect(0, 31, 32, 1);
+    ctx.fillRect(16, 0, 1, 15);
+    ctx.fillRect(8, 16, 1, 15);
+    ctx.fillStyle = '#8f5e33'; // Highlight
+    ctx.fillRect(2, 2, 12, 1);
+    ctx.fillRect(18, 18, 12, 1);
+    SpriteCache.tiles['wood_floor'] = canvas;
+  }
+
+  // Green Bed (64x64)
+  {
+    const { canvas, ctx } = createCanvas(64, 64);
+    // Wooden bed frame
+    ctx.fillStyle = '#5d4037';
+    ctx.fillRect(4, 4, 56, 56);
+    // Mattress & Pillow
+    ctx.fillStyle = '#ffffff'; // White pillow
+    ctx.fillRect(10, 8, 44, 14);
+    ctx.fillStyle = '#cfd8dc';
+    ctx.fillRect(12, 10, 40, 10);
+    // Green Comforter Blanket
+    ctx.fillStyle = '#2e7d32';
+    ctx.fillRect(8, 22, 48, 34);
+    ctx.fillStyle = '#1b5e20'; // Blanket folds
+    ctx.fillRect(8, 32, 48, 4);
+    ctx.fillRect(8, 44, 48, 4);
+    SpriteCache.decorations['green_bed'] = canvas;
+  }
+
+  // Green Sofa / Armchair (64x32)
+  {
+    const { canvas, ctx } = createCanvas(64, 32);
+    // Dark green frame
+    ctx.fillStyle = '#1b5e20';
+    ctx.fillRect(2, 2, 60, 28);
+    // Emerald green cushions
+    ctx.fillStyle = '#388e3c';
+    ctx.fillRect(6, 6, 24, 18);
+    ctx.fillRect(34, 6, 24, 18);
+    // Soft cushion highlights
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(8, 8, 20, 4);
+    ctx.fillRect(36, 8, 20, 4);
+    SpriteCache.decorations['green_sofa'] = canvas;
+  }
+
+  // Green Area Rug (64x64)
+  {
+    const { canvas, ctx } = createCanvas(64, 64);
+    // Outer green border
+    ctx.fillStyle = '#2e7d32';
+    ctx.fillRect(0, 0, 64, 64);
+    // Inner emerald green rug pattern
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(6, 6, 52, 52);
+    // Yellow tassel corners
+    ctx.fillStyle = '#ffea00';
+    ctx.fillRect(2, 2, 4, 4);
+    ctx.fillRect(58, 2, 4, 4);
+    ctx.fillRect(2, 58, 4, 4);
+    ctx.fillRect(58, 58, 4, 4);
+    SpriteCache.decorations['green_rug'] = canvas;
+  }
+
+  // Fireplace (32x48)
+  {
+    const { canvas, ctx } = createCanvas(32, 48);
+    // Brick surround
+    ctx.fillStyle = '#795548';
+    ctx.fillRect(0, 0, 32, 48);
+    ctx.fillStyle = '#5d4037'; // Mantle
+    ctx.fillRect(0, 0, 32, 8);
+    // Fire cavity
+    ctx.fillStyle = '#212121';
+    ctx.fillRect(6, 16, 20, 28);
+    // Fire flames
+    ctx.fillStyle = '#ff6d00';
+    ctx.fillRect(10, 24, 12, 16);
+    ctx.fillStyle = '#ffea00';
+    ctx.fillRect(12, 20, 8, 12);
+    SpriteCache.decorations['fireplace'] = canvas;
+  }
+
+  // Exit Mat (32x32)
+  {
+    const { canvas, ctx } = createCanvas();
+    ctx.fillStyle = '#8d6e63';
+    ctx.fillRect(4, 6, 24, 20);
+    ctx.fillStyle = '#d7ccc8';
+    ctx.fillRect(6, 8, 20, 16);
+    ctx.fillStyle = '#5d4037';
+    ctx.font = '10px sans-serif';
+    ctx.fillText('EXIT', 6, 20);
+    SpriteCache.tiles['exit_mat'] = canvas;
+  }
+}
+
+// Master Initialize Function
+export function initAllSprites() {
+  initBunnySprites();
+  initWapsSprites();
+  initTileSprites();
+  initInteriorTileSprites();
+  initCropSprites();
+  initToolSprites();
+  initDecorationSprites();
+  console.log('All pixel art sprites initialized successfully!');
+}
 
 // -------------------------------------------------------------
 // 1. YELLOW BUNNY PLAYER SPRITE GENERATOR (Matches user drawing!)

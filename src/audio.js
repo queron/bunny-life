@@ -111,6 +111,22 @@ export function playSound(type) {
       osc.start(now);
       osc.stop(now + 0.2);
     }
+    else if (type === 'bark') {
+      // 8-bit cheerful dog bark sound (two rapid pitch pulses)
+      [0, 0.08].forEach(delay => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(450, now + delay);
+        osc.frequency.exponentialRampToValueAtTime(250, now + delay + 0.07);
+        gain.gain.setValueAtTime(0.2, now + delay);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.07);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + delay);
+        osc.stop(now + delay + 0.07);
+      });
+    }
   } catch (e) {
     console.error('Audio playback error:', e);
   }

@@ -26,6 +26,7 @@ const state = {
   coins: 50,
   stamina: 100,
   maxStamina: 100,
+  scene: 'farm', // 'farm' or 'house'
   
   // Player position & animation
   player: {
@@ -37,6 +38,15 @@ const state = {
     animTick: 0,
     animFrame: 'idle',
     actionCooldown: 0
+  },
+
+  // Waps the Dog (Matches user drawing!)
+  waps: {
+    x: 12 * TILE_SIZE,
+    y: 9 * TILE_SIZE,
+    wagTimer: 0,
+    animFrame: 'idle',
+    hearts: []
   },
 
   // Inventory Slots (6 slots on quickbar)
@@ -52,18 +62,12 @@ const state = {
 
   // 2D Array of Grid Tiles
   grid: [],
-
-  // Keys currently pressed
   keys: {},
-
-  // Weather: 'sunny' or 'rainy'
   weather: 'sunny',
-
-  // Fireflies for night time
   fireflies: []
 };
 
-// Initialize Grid Map
+// Initialize Outdoor Grid Map
 function initGrid() {
   state.grid = [];
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -128,6 +132,42 @@ export function showNotification(msg) {
   setTimeout(() => {
     toast.classList.remove('show');
   }, 2500);
+}
+
+// Scene Transitions
+export function enterHouse() {
+  state.scene = 'house';
+  state.player.x = 11.5 * TILE_SIZE;
+  state.player.y = 13 * TILE_SIZE;
+  state.player.dir = 'up';
+  showNotification("Inside Bunny Burrow 🏡");
+}
+
+export function exitHouse() {
+  state.scene = 'farm';
+  state.player.x = 19 * TILE_SIZE;
+  state.player.y = 4 * TILE_SIZE;
+  state.player.dir = 'down';
+  showNotification("Back to the Farm 🥕");
+}
+
+// Pet Waps the Dog
+export function petWaps() {
+  playSound('bark');
+  state.waps.wagTimer = 90; // Tail wagging duration
+  
+  // Spawn floating heart particles above Waps
+  for (let i = 0; i < 5; i++) {
+    state.waps.hearts.push({
+      x: state.waps.x + 8 + (Math.random() - 0.5) * 16,
+      y: state.waps.y - 4,
+      vy: -1.0 - Math.random() * 0.8,
+      alpha: 1.0
+    });
+  }
+
+  state.stamina = Math.min(state.maxStamina, state.stamina + 10);
+  showNotification("You petted Waps! 🐶❤️ Waps wags his tail!");
 }
 
 // Setup Event Listeners
@@ -196,7 +236,6 @@ function renderQuickbar() {
       if (item.type === 'tool') {
         img.src = SpriteCache.tools[item.icon].toDataURL();
       } else if (item.type === 'seed') {
-        // Seed bag icon from crop stage 3
         img.src = SpriteCache.crops[item.cropKey][3].toDataURL();
       } else if (item.type === 'crop') {
         img.src = SpriteCache.crops[item.cropKey][3].toDataURL();
@@ -225,7 +264,6 @@ function renderQuickbar() {
 
 // Primary Action Logic
 function performTileAction() {
-  // Determine tile directly in front of Bunny
   let col = Math.floor((state.player.x + TILE_SIZE / 2) / TILE_SIZE);
   let row = Math.floor((state.player.y + TILE_SIZE / 2) / TILE_SIZE);
 
@@ -238,6 +276,31 @@ function performTileAction() {
 }
 
 function interactWithTile(col, row) {
+  // If in House scene
+  if (state.scene === 'house') {
+    // Check if near Waps (dog)
+    const wapsCol = Math.floor(state.waps.x / TILE_SIZE);
+    const wapsRow = Math.floor(state.waps.y / TILE_SIZE);
+    if (Math.abs(col - wapsCol) <= 1 && Math.abs(row - wapsRow) <= 1) {
+      petWaps();
+      return;
+    }
+
+    // Check Green Bed (cols 6..7, rows 5..6)
+    if (col >= 5 && col <= 8 && row >= 4 && row <= 7) {
+      sleepToNextDay();
+      return;
+    }
+
+    // Check Exit Mat (cols 11..12, row 14)
+    if ((col === 11 || col === 12) && row >= 13) {
+      exitHouse();
+      return;
+    }
+    return;
+  }
+
+  // If in Farm scene
   if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
   const tile = state.grid[row][col];
   const item = state.inventory[state.selectedSlot];
@@ -248,19 +311,18 @@ function interactWithTile(col, row) {
     return;
   }
 
-  // Interacting with Burrow House (Sleeping to next day)
+  // Interacting with Burrow House (Enter House or Sleep)
   if (tile.type === 'burrow') {
-    sleepToNextDay();
+    enterHouse();
     return;
   }
 
   // Check Stamina
   if (state.stamina <= 0) {
-    showNotification("Bunny is exhausted! Rest in Burrow 😴");
+    showNotification("Bunny is exhausted! Sleep in House 😴");
     return;
   }
 
-  // Action based on selected item
   if (!item) return;
 
   // 1. HOE TOOL (Till Grass into Dirt)
@@ -307,7 +369,6 @@ function interactWithTile(col, row) {
       const cropKey = tile.crop.key;
       const cData = CROPS_DATA[cropKey];
       
-      // Add harvested item to inventory
       addItemToInventory({
         id: `crop_${cropKey}`,
         type: 'crop',
@@ -326,12 +387,10 @@ function interactWithTile(col, row) {
 
 // Add Item to Inventory
 function addItemToInventory(newItem) {
-  // First check if stackable existing item
   const existing = state.inventory.find(i => i && i.id === newItem.id);
   if (existing) {
     existing.count += newItem.count;
   } else {
-    // Find empty slot
     const emptyIndex = state.inventory.findIndex(i => i === null);
     if (emptyIndex !== -1) {
       state.inventory[emptyIndex] = newItem;
@@ -370,7 +429,7 @@ function sleepToNextDay() {
   }
 }
 
-// Update Player Movement & Animation
+// Update Player Movement & Collision
 function updatePlayer() {
   if (state.player.actionCooldown > 0) {
     state.player.actionCooldown--;
@@ -396,14 +455,41 @@ function updatePlayer() {
     const nextX = state.player.x + dx * state.player.speed;
     const nextY = state.player.y + dy * state.player.speed;
 
-    // Boundary & Collision Check
-    const col = Math.floor((nextX + TILE_SIZE / 2) / TILE_SIZE);
-    const row = Math.floor((nextY + TILE_SIZE / 2) / TILE_SIZE);
+    if (state.scene === 'farm') {
+      const col = Math.floor((nextX + TILE_SIZE / 2) / TILE_SIZE);
+      const row = Math.floor((nextY + TILE_SIZE / 2) / TILE_SIZE);
 
-    if (col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS) {
-      const targetTile = state.grid[row][col];
-      // Water and Fences block movement
-      if (targetTile.type !== 'water' && targetTile.type !== 'fence') {
+      if (col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS) {
+        const targetTile = state.grid[row][col];
+
+        // Entering Burrow Doorway Trigger
+        if (targetTile.type === 'burrow' && state.player.dir === 'up') {
+          enterHouse();
+          return;
+        }
+
+        if (targetTile.type !== 'water' && targetTile.type !== 'fence') {
+          state.player.x = nextX;
+          state.player.y = nextY;
+        }
+      }
+    } else if (state.scene === 'house') {
+      // Room boundaries: cols 5..18, rows 4..14
+      const minX = 5 * TILE_SIZE;
+      const maxX = 18 * TILE_SIZE;
+      const minY = 4.5 * TILE_SIZE;
+      const maxY = 14 * TILE_SIZE;
+
+      const col = Math.floor((nextX + TILE_SIZE / 2) / TILE_SIZE);
+      const row = Math.floor((nextY + TILE_SIZE / 2) / TILE_SIZE);
+
+      // Exit Mat Trigger
+      if ((col === 11 || col === 12) && row >= 14 && state.player.dir === 'down') {
+        exitHouse();
+        return;
+      }
+
+      if (nextX >= minX && nextX <= maxX && nextY >= minY && nextY <= maxY) {
         state.player.x = nextX;
         state.player.y = nextY;
       }
@@ -419,13 +505,28 @@ function updatePlayer() {
   } else {
     state.player.animFrame = 'idle';
   }
+
+  // Update Waps Tail Wag Timer & Heart Particles
+  if (state.waps.wagTimer > 0) {
+    state.waps.wagTimer--;
+    const frame = Math.floor(state.waps.wagTimer / 10) % 2 === 0 ? 'wag1' : 'wag2';
+    state.waps.animFrame = frame;
+  } else {
+    state.waps.animFrame = 'idle';
+  }
+
+  // Heart Particles Tick
+  state.waps.hearts.forEach((h, i) => {
+    h.y += h.vy;
+    h.alpha -= 0.02;
+    if (h.alpha <= 0) state.waps.hearts.splice(i, 1);
+  });
 }
 
 // Update Clock & Crop Timers
 function updateGameTime(dt = 0.016) {
   state.timeMinutes += dt * 1; // 1 in-game minute = 1 real-life second
   if (state.timeMinutes >= 24 * 60) {
-    // Midnight forced sleep
     sleepToNextDay();
   }
 
@@ -459,7 +560,10 @@ function updateHUD() {
   if (clockEl) clockEl.textContent = timeStr;
 
   const dayEl = document.getElementById('day-display');
-  if (dayEl) dayEl.textContent = `Day ${state.day}`;
+  if (dayEl) {
+    const loc = state.scene === 'house' ? ' 🏡 House' : '';
+    dayEl.textContent = `Day ${state.day}${loc}`;
+  }
 
   const coinsEl = document.getElementById('coins-display');
   if (coinsEl) coinsEl.textContent = state.coins.toString();
@@ -471,91 +575,153 @@ function updateHUD() {
   }
 }
 
-// Render Game Canvas
+// Render Game Canvas (Farm vs House Scene)
 function render() {
   const ctx = state.ctx;
   ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-  // 1. Draw Grid Tiles & Crops
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      const tile = state.grid[r][c];
-      const posX = c * TILE_SIZE;
-      const posY = r * TILE_SIZE;
+  if (state.scene === 'farm') {
+    // ------------------------------------
+    // FARM SCENE RENDERING
+    // ------------------------------------
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        const tile = state.grid[r][c];
+        const posX = c * TILE_SIZE;
+        const posY = r * TILE_SIZE;
 
-      // Draw Base Tile
-      let spriteKey = tile.type;
-      if (tile.type === 'dirt' && tile.isWatered) {
-        spriteKey = 'dirt_watered';
-      }
+        let spriteKey = tile.type;
+        if (tile.type === 'dirt' && tile.isWatered) {
+          spriteKey = 'dirt_watered';
+        }
 
-      if (SpriteCache.tiles[spriteKey]) {
-        ctx.drawImage(SpriteCache.tiles[spriteKey], posX, posY);
-      } else if (tile.type === 'burrow') {
-        ctx.drawImage(SpriteCache.tiles['grass'], posX, posY);
-      } else if (tile.type === 'shop') {
-        ctx.drawImage(SpriteCache.tiles['grass'], posX, posY);
-      }
+        if (SpriteCache.tiles[spriteKey]) {
+          ctx.drawImage(SpriteCache.tiles[spriteKey], posX, posY);
+        } else if (tile.type === 'burrow' || tile.type === 'shop') {
+          ctx.drawImage(SpriteCache.tiles['grass'], posX, posY);
+        }
 
-      // Draw Crops
-      if (tile.crop) {
-        const cropSprites = SpriteCache.crops[tile.crop.key];
-        if (cropSprites && cropSprites[tile.crop.stage]) {
-          ctx.drawImage(cropSprites[tile.crop.stage], posX, posY);
+        if (tile.crop) {
+          const cropSprites = SpriteCache.crops[tile.crop.key];
+          if (cropSprites && cropSprites[tile.crop.stage]) {
+            ctx.drawImage(cropSprites[tile.crop.stage], posX, posY);
+          }
         }
       }
     }
-  }
 
-  // 2. Draw Multi-tile Structures (Burrow & Shop)
-  ctx.drawImage(SpriteCache.decorations['burrow'], 18 * TILE_SIZE - 16, 1 * TILE_SIZE - 20);
-  ctx.drawImage(SpriteCache.decorations['shop'], 19 * TILE_SIZE - 16, 13 * TILE_SIZE - 16);
+    // Outdoor Structures
+    ctx.drawImage(SpriteCache.decorations['burrow'], 18 * TILE_SIZE - 16, 1 * TILE_SIZE - 20);
+    ctx.drawImage(SpriteCache.decorations['shop'], 19 * TILE_SIZE - 16, 13 * TILE_SIZE - 16);
 
-  // 3. Draw Player Bunny
-  const bunnySprite = SpriteCache.bunny[state.player.dir][state.player.animFrame];
-  if (bunnySprite) {
-    ctx.drawImage(bunnySprite, state.player.x, state.player.y);
-  }
+    // Player Bunny
+    const bunnySprite = SpriteCache.bunny[state.player.dir][state.player.animFrame];
+    if (bunnySprite) {
+      ctx.drawImage(bunnySprite, state.player.x, state.player.y);
+    }
 
-  // 4. Day / Night Dynamic Ambient Lighting & Fireflies
-  const hours = state.timeMinutes / 60;
-  let overlayAlpha = 0;
-  let overlayColor = '0, 0, 40'; // Default Night Blue
+    // Day / Night Dynamic Ambient Lighting & Fireflies
+    const hours = state.timeMinutes / 60;
+    let overlayAlpha = 0;
+    let overlayColor = '0, 0, 40';
 
-  if (hours >= 18 && hours < 21) {
-    // Evening Sunset (Orange/Purple tint)
-    overlayAlpha = ((hours - 18) / 3) * 0.4;
-    overlayColor = '120, 40, 20';
-  } else if (hours >= 21 || hours < 5) {
-    // Night time (Dark blue overlay)
-    overlayAlpha = 0.55;
-    overlayColor = '10, 15, 45';
-  } else if (hours >= 5 && hours < 7) {
-    // Morning Dawn
-    overlayAlpha = ((7 - hours) / 2) * 0.3;
-    overlayColor = '255, 180, 100';
-  }
+    if (hours >= 18 && hours < 21) {
+      overlayAlpha = ((hours - 18) / 3) * 0.4;
+      overlayColor = '120, 40, 20';
+    } else if (hours >= 21 || hours < 5) {
+      overlayAlpha = 0.55;
+      overlayColor = '10, 15, 45';
+    } else if (hours >= 5 && hours < 7) {
+      overlayAlpha = ((7 - hours) / 2) * 0.3;
+      overlayColor = '255, 180, 100';
+    }
 
-  if (overlayAlpha > 0) {
-    ctx.fillStyle = `rgba(${overlayColor}, ${overlayAlpha})`;
+    if (overlayAlpha > 0) {
+      ctx.fillStyle = `rgba(${overlayColor}, ${overlayAlpha})`;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    }
+
+    if (hours >= 20 || hours < 5) {
+      ctx.fillStyle = '#ffee00';
+      state.fireflies.forEach(f => {
+        f.x += f.speedX;
+        f.y += f.speedY;
+        if (f.x < 0) f.x = CANVAS_WIDTH;
+        if (f.x > CANVAS_WIDTH) f.x = 0;
+        if (f.y < 0) f.y = CANVAS_HEIGHT;
+        if (f.y > CANVAS_HEIGHT) f.y = 0;
+
+        ctx.globalAlpha = 0.4 + Math.sin(Date.now() * 0.005 + f.x) * 0.4;
+        ctx.fillRect(f.x, f.y, f.size, f.size);
+      });
+      ctx.globalAlpha = 1.0;
+    }
+
+  } else if (state.scene === 'house') {
+    // ------------------------------------
+    // HOUSE INTERIOR SCENE RENDERING
+    // ------------------------------------
+    ctx.fillStyle = '#11141a';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  }
 
-  // Render Night Glowing Fireflies
-  if (hours >= 20 || hours < 5) {
+    // Draw Room Interior Tiles (cols 5..18, rows 4..14)
+    for (let r = 4; r <= 14; r++) {
+      for (let c = 5; c <= 18; c++) {
+        const posX = c * TILE_SIZE;
+        const posY = r * TILE_SIZE;
+
+        if (r === 4) {
+          // Walnut Wall Paneling
+          ctx.drawImage(SpriteCache.tiles['walnut_wall'], posX, posY);
+        } else {
+          // Wood Floor
+          ctx.drawImage(SpriteCache.tiles['wood_floor'], posX, posY);
+        }
+      }
+    }
+
+    // Exit Mat
+    ctx.drawImage(SpriteCache.tiles['exit_mat'], 11 * TILE_SIZE, 14 * TILE_SIZE);
+    ctx.drawImage(SpriteCache.tiles['exit_mat'], 12 * TILE_SIZE, 14 * TILE_SIZE);
+
+    // Green Furniture Items
+    // Green Rug (centered)
+    ctx.drawImage(SpriteCache.decorations['green_rug'], 10 * TILE_SIZE, 8 * TILE_SIZE);
+    // Green Bed (top left)
+    ctx.drawImage(SpriteCache.decorations['green_bed'], 6 * TILE_SIZE, 5 * TILE_SIZE);
+    // Green Sofa (center right)
+    ctx.drawImage(SpriteCache.decorations['green_sofa'], 14 * TILE_SIZE, 8 * TILE_SIZE);
+    // Fireplace (top center wall)
+    ctx.drawImage(SpriteCache.decorations['fireplace'], 11 * TILE_SIZE + 16, 3 * TILE_SIZE + 16);
+
+    // Render Waps the Yellow Dog!
+    const wapsSprite = SpriteCache.waps[state.waps.animFrame] || SpriteCache.waps['idle'];
+    ctx.drawImage(wapsSprite, state.waps.x, state.waps.y);
+
+    // Waps Name Tag Label
     ctx.fillStyle = '#ffee00';
-    state.fireflies.forEach(f => {
-      f.x += f.speedX;
-      f.y += f.speedY;
-      if (f.x < 0) f.x = CANVAS_WIDTH;
-      if (f.x > CANVAS_WIDTH) f.x = 0;
-      if (f.y < 0) f.y = CANVAS_HEIGHT;
-      if (f.y > CANVAS_HEIGHT) f.y = 0;
+    ctx.font = '10px Silkscreen, cursive';
+    ctx.fillText('Waps 🐶', state.waps.x, state.waps.y - 4);
 
-      ctx.globalAlpha = 0.4 + Math.sin(Date.now() * 0.005 + f.x) * 0.4;
-      ctx.fillRect(f.x, f.y, f.size, f.size);
+    // Render Floating Heart Particles ❤️
+    ctx.fillStyle = '#ff80ab';
+    state.waps.hearts.forEach(h => {
+      ctx.globalAlpha = Math.max(0, h.alpha);
+      ctx.fillRect(h.x, h.y, 4, 4);
+      ctx.fillRect(h.x - 2, h.y - 2, 2, 2);
+      ctx.fillRect(h.x + 4, h.y - 2, 2, 2);
     });
     ctx.globalAlpha = 1.0;
+
+    // Render Bunny Player
+    const bunnySprite = SpriteCache.bunny[state.player.dir][state.player.animFrame];
+    if (bunnySprite) {
+      ctx.drawImage(bunnySprite, state.player.x, state.player.y);
+    }
+
+    // Cozy Fireplace & Lamp Glow Overlay
+    ctx.fillStyle = 'rgba(255, 180, 80, 0.08)';
+    ctx.fillRect(5 * TILE_SIZE, 4 * TILE_SIZE, 14 * TILE_SIZE, 11 * TILE_SIZE);
   }
 }
 
@@ -578,7 +744,6 @@ function renderShopItems() {
   if (!container) return;
   container.innerHTML = '';
 
-  // Seeds Section
   Object.keys(CROPS_DATA).forEach(cropKey => {
     const cData = CROPS_DATA[cropKey];
     const card = document.createElement('div');
@@ -626,7 +791,6 @@ function renderShopItems() {
     container.appendChild(card);
   });
 
-  // Sell Harvested Produce
   state.inventory.forEach((item, idx) => {
     if (item && item.type === 'crop') {
       const cData = CROPS_DATA[item.cropKey];
@@ -691,21 +855,16 @@ window.addEventListener('DOMContentLoaded', () => {
   state.ctx = state.canvas.getContext('2d');
   state.ctx.imageSmoothingEnabled = false;
 
-  // Initialize all pixel art sprites
   initAllSprites();
-
-  // Initialize Grid Map & Controls
   initGrid();
   setupControls();
   renderQuickbar();
   updateHUD();
 
-  // Start Chiptune Audio on first click
   window.addEventListener('click', () => {
     startMusic();
   }, { once: true });
 
-  // Attach Modal Buttons
   const shopBtn = document.getElementById('open-shop-btn');
   if (shopBtn) shopBtn.onclick = openShopModal;
 
@@ -720,6 +879,5 @@ window.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Start loop!
   requestAnimationFrame(gameLoop);
 });
