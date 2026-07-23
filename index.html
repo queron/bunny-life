@@ -23,6 +23,11 @@
       </div>
 
       <div class="hud-pill">
+        <span id="weather-icon" class="icon">☀️</span>
+        <span id="weather-display" class="label">Sunny</span>
+      </div>
+
+      <div class="hud-pill">
         <span class="icon">🪙</span>
         <span id="coins-display" class="label">50</span>
       </div>
@@ -70,6 +75,33 @@
         </div>
         <div class="modal-body">
           <div class="shop-grid" id="shop-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RETRO TV WEATHER FORECAST MODAL -->
+    <div id="tv-modal" class="modal-overlay">
+      <div class="modal-card tv-card">
+        <div class="modal-header tv-header">
+          <div class="modal-title">📺 Bunny News Channel - Weather Report</div>
+          <button id="close-tv-btn" class="close-btn">✖</button>
+        </div>
+        <div class="modal-body tv-body">
+          <div class="tv-screen">
+            <div class="tv-scanlines"></div>
+            <div class="tv-content">
+              <div class="anchor-box">
+                <span class="anchor-emoji">🐰🎤</span>
+                <span class="anchor-name">Meteorologist Bunny</span>
+              </div>
+              <div class="forecast-box">
+                <div class="forecast-title">TOMORROW'S FORECAST</div>
+                <div id="forecast-icon" class="forecast-icon">🌧️</div>
+                <div id="forecast-name" class="forecast-name">Heavy Rain</div>
+                <p id="forecast-desc" class="forecast-desc">Rain will automatically water all your farm plots tomorrow!</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

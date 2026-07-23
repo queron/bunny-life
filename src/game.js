@@ -17,6 +17,35 @@ const GRID_ROWS = 18;
 const CANVAS_WIDTH = GRID_COLS * TILE_SIZE;
 const CANVAS_HEIGHT = GRID_ROWS * TILE_SIZE;
 
+// Weather Definitions
+export const WEATHER_DATA = {
+  sunny: { 
+    name: 'Sunny', 
+    icon: '☀️', 
+    desc: 'Clear skies and warm sunshine! A lovely, productive day on the farm.' 
+  },
+  rainy: { 
+    name: 'Rainy', 
+    icon: '🌧️', 
+    desc: 'Soft rain falling! Automatically waters all your tilled soil plots today.' 
+  },
+  stormy: { 
+    name: 'Thunderstorm', 
+    icon: '⛈️', 
+    desc: 'Heavy rain & thunder! Waters all crops and gives extra growth speed.' 
+  },
+  windy: { 
+    name: 'Petal Breeze', 
+    icon: '🌸', 
+    desc: 'Cherry blossom petals & leaves floating gently in a refreshing breeze.' 
+  },
+  snowy: { 
+    name: 'Snowy Chill', 
+    icon: '❄️', 
+    desc: 'Crisp winter snowflakes drifting over your farm.' 
+  }
+};
+
 // Game State
 const state = {
   canvas: null,
@@ -27,7 +56,15 @@ const state = {
   stamina: 100,
   maxStamina: 100,
   scene: 'farm', // 'farm' or 'house'
-  
+
+  // Dynamic Weather Engine
+  weather: {
+    current: 'sunny',
+    tomorrow: 'rainy',
+    particles: [],
+    lightningTimer: 0
+  },
+
   // Player position & animation
   player: {
     x: 11 * TILE_SIZE,
@@ -40,7 +77,7 @@ const state = {
     actionCooldown: 0
   },
 
-  // Waps the Dog (Matches user drawing!)
+  // Waps the Dog
   waps: {
     x: 12 * TILE_SIZE,
     y: 9 * TILE_SIZE,
@@ -60,14 +97,12 @@ const state = {
     { id: 'seed_sunflower', type: 'seed', cropKey: 'sunflower', name: 'Sunflower Seeds', count: 2 }
   ],
 
-  // 2D Array of Grid Tiles
   grid: [],
   keys: {},
-  weather: 'sunny',
   fireflies: []
 };
 
-// Initialize Outdoor Grid Map
+// Initialize Grid Map
 function initGrid() {
   state.grid = [];
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -75,41 +110,34 @@ function initGrid() {
     for (let c = 0; c < GRID_COLS; c++) {
       let type = 'grass';
       
-      // Top Left Water Pond (cols 1..4, rows 1..3)
       if (c >= 1 && c <= 4 && r >= 1 && r <= 3) {
         type = 'water';
-      }
-      // Top Right Burrow House (cols 18..20, rows 1..3)
-      else if (c >= 18 && c <= 20 && r >= 1 && r <= 3) {
+      } else if (c >= 18 && c <= 20 && r >= 1 && r <= 3) {
         type = 'burrow';
-      }
-      // Bottom Right Market Stall (cols 19..21, rows 13..15)
-      else if (c >= 19 && c <= 21 && r >= 13 && r <= 15) {
+      } else if (c >= 19 && c <= 21 && r >= 13 && r <= 15) {
         type = 'shop';
-      }
-      // Perimeter Fence
-      else if (r === 0 || r === GRID_ROWS - 1 || c === 0 || c === GRID_COLS - 1) {
+      } else if (r === 0 || r === GRID_ROWS - 1 || c === 0 || c === GRID_COLS - 1) {
         type = 'fence';
-      }
-      // Pathway Stones (cols 11..12, rows 1..16)
-      else if (c === 11 || c === 12) {
+      } else if (c === 11 || c === 12) {
         type = 'stone';
-      }
-      // Central Farm Plot (cols 5..10 and 13..17, rows 6..13)
-      else if (((c >= 5 && c <= 10) || (c >= 13 && c <= 17)) && (r >= 6 && r <= 13)) {
+      } else if (((c >= 5 && c <= 10) || (c >= 13 && c <= 17)) && (r >= 6 && r <= 13)) {
         type = 'dirt';
       }
 
       row.push({
         type: type,
-        crop: null, // { key, stage, timer }
+        crop: null,
         isWatered: false
       });
     }
     state.grid.push(row);
   }
 
-  // Pre-generate Night Fireflies
+  // Pre-generate Night Fireflies & Weather Particles
+  initWeatherParticles();
+}
+
+function initWeatherParticles() {
   state.fireflies = [];
   for (let i = 0; i < 25; i++) {
     state.fireflies.push({
@@ -119,6 +147,17 @@ function initGrid() {
       speedY: (Math.random() - 0.5) * 0.8,
       size: Math.random() * 2 + 1,
       alpha: Math.random()
+    });
+  }
+
+  state.weather.particles = [];
+  for (let i = 0; i < 60; i++) {
+    state.weather.particles.push({
+      x: Math.random() * CANVAS_WIDTH,
+      y: Math.random() * CANVAS_HEIGHT,
+      speedX: (Math.random() - 0.5) * 2,
+      speedY: Math.random() * 4 + 2,
+      size: Math.random() * 3 + 1
     });
   }
 }
@@ -154,9 +193,8 @@ export function exitHouse() {
 // Pet Waps the Dog
 export function petWaps() {
   playSound('bark');
-  state.waps.wagTimer = 90; // Tail wagging duration
+  state.waps.wagTimer = 90;
   
-  // Spawn floating heart particles above Waps
   for (let i = 0; i < 5; i++) {
     state.waps.hearts.push({
       x: state.waps.x + 8 + (Math.random() - 0.5) * 16,
@@ -170,16 +208,37 @@ export function petWaps() {
   showNotification("You petted Waps! 🐶❤️ Waps wags his tail!");
 }
 
+// Open Retro TV Weather Forecast Modal
+export function openTVModal() {
+  playSound('tv_on');
+  const modal = document.getElementById('tv-modal');
+  if (!modal) return;
+
+  const tomorrowData = WEATHER_DATA[state.weather.tomorrow] || WEATHER_DATA['sunny'];
+  const iconEl = document.getElementById('forecast-icon');
+  const nameEl = document.getElementById('forecast-name');
+  const descEl = document.getElementById('forecast-desc');
+
+  if (iconEl) iconEl.textContent = tomorrowData.icon;
+  if (nameEl) nameEl.textContent = tomorrowData.name;
+  if (descEl) descEl.textContent = tomorrowData.desc;
+
+  modal.classList.add('open');
+}
+
+export function closeTVModal() {
+  const modal = document.getElementById('tv-modal');
+  if (modal) modal.classList.remove('open');
+}
+
 // Setup Event Listeners
 function setupControls() {
   window.addEventListener('keydown', (e) => {
     state.keys[e.code] = true;
     
-    // Quickbar selection (Keys 1-6)
     if (e.key >= '1' && e.key <= '6') {
       selectSlot(parseInt(e.key) - 1);
     }
-    // Action key (Space or E)
     if (e.code === 'Space' || e.code === 'KeyE') {
       performTileAction();
     }
@@ -189,7 +248,6 @@ function setupControls() {
     state.keys[e.code] = false;
   });
 
-  // Canvas Mouse Click interaction
   state.canvas.addEventListener('click', (e) => {
     const rect = state.canvas.getBoundingClientRect();
     const scaleX = CANVAS_WIDTH / rect.width;
@@ -205,7 +263,6 @@ function setupControls() {
   });
 }
 
-// Select Inventory Slot
 function selectSlot(index) {
   if (index >= 0 && index < 6) {
     state.selectedSlot = index;
@@ -213,7 +270,6 @@ function selectSlot(index) {
   }
 }
 
-// Render Quickbar HUD
 function renderQuickbar() {
   const container = document.getElementById('quickbar');
   if (!container) return;
@@ -254,7 +310,6 @@ function renderQuickbar() {
     container.appendChild(slotEl);
   }
 
-  // Update Item Tooltip
   const activeItem = state.inventory[state.selectedSlot];
   const tooltip = document.getElementById('item-tooltip');
   if (tooltip) {
@@ -262,7 +317,6 @@ function renderQuickbar() {
   }
 }
 
-// Primary Action Logic
 function performTileAction() {
   let col = Math.floor((state.player.x + TILE_SIZE / 2) / TILE_SIZE);
   let row = Math.floor((state.player.y + TILE_SIZE / 2) / TILE_SIZE);
@@ -276,9 +330,14 @@ function performTileAction() {
 }
 
 function interactWithTile(col, row) {
-  // If in House scene
   if (state.scene === 'house') {
-    // Check if near Waps (dog)
+    // Interacting with Retro TV (col 16, row 4..5)
+    if (col >= 15 && col <= 17 && row >= 3 && row <= 6) {
+      openTVModal();
+      return;
+    }
+
+    // Interacting with Waps
     const wapsCol = Math.floor(state.waps.x / TILE_SIZE);
     const wapsRow = Math.floor(state.waps.y / TILE_SIZE);
     if (Math.abs(col - wapsCol) <= 1 && Math.abs(row - wapsRow) <= 1) {
@@ -286,13 +345,13 @@ function interactWithTile(col, row) {
       return;
     }
 
-    // Check Green Bed (cols 6..7, rows 5..6)
+    // Interacting with Green Bed
     if (col >= 5 && col <= 8 && row >= 4 && row <= 7) {
       sleepToNextDay();
       return;
     }
 
-    // Check Exit Mat (cols 11..12, row 14)
+    // Interacting with Exit Mat
     if ((col === 11 || col === 12) && row >= 13) {
       exitHouse();
       return;
@@ -300,24 +359,20 @@ function interactWithTile(col, row) {
     return;
   }
 
-  // If in Farm scene
   if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return;
   const tile = state.grid[row][col];
   const item = state.inventory[state.selectedSlot];
 
-  // Interacting with Market Stall Shop
   if (tile.type === 'shop') {
     openShopModal();
     return;
   }
 
-  // Interacting with Burrow House (Enter House or Sleep)
   if (tile.type === 'burrow') {
     enterHouse();
     return;
   }
 
-  // Check Stamina
   if (state.stamina <= 0) {
     showNotification("Bunny is exhausted! Sleep in House 😴");
     return;
@@ -325,7 +380,6 @@ function interactWithTile(col, row) {
 
   if (!item) return;
 
-  // 1. HOE TOOL (Till Grass into Dirt)
   if (item.id === 'tool_hoe') {
     if (tile.type === 'grass') {
       tile.type = 'dirt';
@@ -333,20 +387,14 @@ function interactWithTile(col, row) {
       playSound('till');
       state.player.actionCooldown = 15;
     }
-  }
-
-  // 2. WATERING CAN (Hydrate Tilled Dirt)
-  else if (item.id === 'tool_water') {
+  } else if (item.id === 'tool_water') {
     if (tile.type === 'dirt' && !tile.isWatered) {
       tile.isWatered = true;
       state.stamina = Math.max(0, state.stamina - 1);
       playSound('water');
       state.player.actionCooldown = 15;
     }
-  }
-
-  // 3. PLANT SEEDS
-  else if (item.type === 'seed') {
+  } else if (item.type === 'seed') {
     if (tile.type === 'dirt' && !tile.crop) {
       tile.crop = {
         key: item.cropKey,
@@ -361,10 +409,7 @@ function interactWithTile(col, row) {
       renderQuickbar();
       state.player.actionCooldown = 12;
     }
-  }
-
-  // 4. HARVEST GLOVE / HAND (Harvest Mature Crop)
-  else if (item.id === 'tool_glove' || !item) {
+  } else if (item.id === 'tool_glove' || !item) {
     if (tile.crop && tile.crop.stage === 3) {
       const cropKey = tile.crop.key;
       const cData = CROPS_DATA[cropKey];
@@ -385,7 +430,6 @@ function interactWithTile(col, row) {
   }
 }
 
-// Add Item to Inventory
 function addItemToInventory(newItem) {
   const existing = state.inventory.find(i => i && i.id === newItem.id);
   if (existing) {
@@ -401,35 +445,49 @@ function addItemToInventory(newItem) {
   renderQuickbar();
 }
 
-// Sleep & Pass to Next Day
+// Sleep & Pass to Next Day with Weather Transition
 function sleepToNextDay() {
   const overlay = document.getElementById('day-transition-overlay');
   if (overlay) {
     overlay.classList.add('active');
     setTimeout(() => {
       state.day++;
-      state.timeMinutes = 6 * 60; // Reset to 6:00 AM
-      state.stamina = state.maxStamina; // Full stamina refill!
+      state.timeMinutes = 6 * 60;
+      state.stamina = state.maxStamina;
 
-      // Daily crop growth tick for watered crops
+      // Update Weather for the New Day
+      state.weather.current = state.weather.tomorrow;
+      const weatherTypes = ['sunny', 'rainy', 'stormy', 'windy', 'snowy'];
+      state.weather.tomorrow = weatherTypes[Math.floor(Math.random() * weatherTypes.length)];
+
+      const isRainyDay = (state.weather.current === 'rainy' || state.weather.current === 'stormy');
+
+      // Daily crop growth & automatic rain watering
       for (let r = 0; r < GRID_ROWS; r++) {
         for (let c = 0; c < GRID_COLS; c++) {
           const t = state.grid[r][c];
+          if (t.type === 'dirt' && isRainyDay) {
+            t.isWatered = true; // Rain waters all tilled soil plots!
+          }
           if (t.crop && t.isWatered) {
             t.crop.stage = Math.min(3, t.crop.stage + 1);
-            t.isWatered = false; // Soil dries after sleeping
+            if (!isRainyDay) t.isWatered = false;
           }
         }
       }
 
       updateHUD();
       overlay.classList.remove('active');
-      showNotification(`Good morning! Day ${state.day}`);
+
+      if (isRainyDay) {
+        showNotification(`Good morning! Rain watered your farm plots! 🌧️`);
+      } else {
+        showNotification(`Good morning! Day ${state.day}`);
+      }
     }, 1200);
   }
 }
 
-// Update Player Movement & Collision
 function updatePlayer() {
   if (state.player.actionCooldown > 0) {
     state.player.actionCooldown--;
@@ -462,7 +520,6 @@ function updatePlayer() {
       if (col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS) {
         const targetTile = state.grid[row][col];
 
-        // Entering Burrow Doorway Trigger
         if (targetTile.type === 'burrow' && state.player.dir === 'up') {
           enterHouse();
           return;
@@ -474,7 +531,6 @@ function updatePlayer() {
         }
       }
     } else if (state.scene === 'house') {
-      // Room boundaries: cols 5..18, rows 4..14
       const minX = 5 * TILE_SIZE;
       const maxX = 18 * TILE_SIZE;
       const minY = 4.5 * TILE_SIZE;
@@ -483,7 +539,6 @@ function updatePlayer() {
       const col = Math.floor((nextX + TILE_SIZE / 2) / TILE_SIZE);
       const row = Math.floor((nextY + TILE_SIZE / 2) / TILE_SIZE);
 
-      // Exit Mat Trigger
       if ((col === 11 || col === 12) && row >= 14 && state.player.dir === 'down') {
         exitHouse();
         return;
@@ -495,7 +550,6 @@ function updatePlayer() {
       }
     }
 
-    // Animation Tick
     state.player.animTick++;
     if (state.player.animTick % 10 === 0) {
       playSound('hop');
@@ -506,7 +560,6 @@ function updatePlayer() {
     state.player.animFrame = 'idle';
   }
 
-  // Update Waps Tail Wag Timer & Heart Particles
   if (state.waps.wagTimer > 0) {
     state.waps.wagTimer--;
     const frame = Math.floor(state.waps.wagTimer / 10) % 2 === 0 ? 'wag1' : 'wag2';
@@ -515,7 +568,6 @@ function updatePlayer() {
     state.waps.animFrame = 'idle';
   }
 
-  // Heart Particles Tick
   state.waps.hearts.forEach((h, i) => {
     h.y += h.vy;
     h.alpha -= 0.02;
@@ -523,20 +575,21 @@ function updatePlayer() {
   });
 }
 
-// Update Clock & Crop Timers
 function updateGameTime(dt = 0.016) {
-  state.timeMinutes += dt * 1; // 1 in-game minute = 1 real-life second
+  state.timeMinutes += dt * 1;
   if (state.timeMinutes >= 24 * 60) {
     sleepToNextDay();
   }
 
-  // Real-time crop growth for watered crops
+  // Real-time crop growth for watered crops (bonus speed during storms)
+  const growthMultiplier = state.weather.current === 'stormy' ? 1.5 : 1.0;
+
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       const tile = state.grid[r][c];
       if (tile.crop && tile.isWatered && tile.crop.stage < 3) {
         const cData = CROPS_DATA[tile.crop.key];
-        tile.crop.timer += dt;
+        tile.crop.timer += dt * growthMultiplier;
         if (tile.crop.timer >= cData.growthTimeSec / 3) {
           tile.crop.stage++;
           tile.crop.timer = 0;
@@ -545,10 +598,20 @@ function updateGameTime(dt = 0.016) {
     }
   }
 
+  // Stormy Lightning Flash FX
+  if (state.weather.current === 'stormy') {
+    if (Math.random() < 0.003) {
+      state.weather.lightningTimer = 6;
+      playSound('thunder');
+    }
+    if (state.weather.lightningTimer > 0) {
+      state.weather.lightningTimer--;
+    }
+  }
+
   updateHUD();
 }
 
-// Update HUD Display
 function updateHUD() {
   const hours = Math.floor(state.timeMinutes / 60);
   const mins = Math.floor(state.timeMinutes % 60);
@@ -565,6 +628,12 @@ function updateHUD() {
     dayEl.textContent = `Day ${state.day}${loc}`;
   }
 
+  const wData = WEATHER_DATA[state.weather.current] || WEATHER_DATA['sunny'];
+  const wIconEl = document.getElementById('weather-icon');
+  const wNameEl = document.getElementById('weather-display');
+  if (wIconEl) wIconEl.textContent = wData.icon;
+  if (wNameEl) wNameEl.textContent = wData.name;
+
   const coinsEl = document.getElementById('coins-display');
   if (coinsEl) coinsEl.textContent = state.coins.toString();
 
@@ -575,7 +644,7 @@ function updateHUD() {
   }
 }
 
-// Render Game Canvas (Farm vs House Scene)
+// Render Game Canvas (Farm vs House & Weather Particles)
 function render() {
   const ctx = state.ctx;
   ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -620,7 +689,7 @@ function render() {
       ctx.drawImage(bunnySprite, state.player.x, state.player.y);
     }
 
-    // Day / Night Dynamic Ambient Lighting & Fireflies
+    // Day / Night Ambient Overlay
     const hours = state.timeMinutes / 60;
     let overlayAlpha = 0;
     let overlayColor = '0, 0, 40';
@@ -636,11 +705,44 @@ function render() {
       overlayColor = '255, 180, 100';
     }
 
-    if (overlayAlpha > 0) {
+    // Weather Effects Rendering
+    const w = state.weather.current;
+    if (w === 'rainy' || w === 'stormy') {
+      ctx.fillStyle = '#81d4fa';
+      state.weather.particles.forEach(p => {
+        p.y += p.speedY;
+        if (p.y > CANVAS_HEIGHT) p.y = -10;
+        ctx.fillRect(p.x, p.y, 1, 8);
+      });
+    } else if (w === 'windy') {
+      state.weather.particles.forEach((p, idx) => {
+        p.x += p.speedX + 1.5;
+        p.y += Math.sin(Date.now() * 0.003 + p.x) * 0.5;
+        if (p.x > CANVAS_WIDTH) p.x = -10;
+
+        ctx.fillStyle = idx % 2 === 0 ? '#ff80ab' : '#81c784'; // Blossom & Leaf
+        ctx.fillRect(p.x, p.y, 4, 3);
+      });
+    } else if (w === 'snowy') {
+      ctx.fillStyle = '#ffffff';
+      state.weather.particles.forEach(p => {
+        p.y += 1.0;
+        p.x += Math.sin(Date.now() * 0.002 + p.y) * 0.5;
+        if (p.y > CANVAS_HEIGHT) p.y = -10;
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+      });
+    }
+
+    // Storm Lightning Screen Flash
+    if (state.weather.lightningTimer > 0) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    } else if (overlayAlpha > 0) {
       ctx.fillStyle = `rgba(${overlayColor}, ${overlayAlpha})`;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
 
+    // Night Fireflies
     if (hours >= 20 || hours < 5) {
       ctx.fillStyle = '#ffee00';
       state.fireflies.forEach(f => {
@@ -671,10 +773,8 @@ function render() {
         const posY = r * TILE_SIZE;
 
         if (r === 4) {
-          // Walnut Wall Paneling
           ctx.drawImage(SpriteCache.tiles['walnut_wall'], posX, posY);
         } else {
-          // Wood Floor
           ctx.drawImage(SpriteCache.tiles['wood_floor'], posX, posY);
         }
       }
@@ -685,25 +785,26 @@ function render() {
     ctx.drawImage(SpriteCache.tiles['exit_mat'], 12 * TILE_SIZE, 14 * TILE_SIZE);
 
     // Green Furniture Items
-    // Green Rug (centered)
     ctx.drawImage(SpriteCache.decorations['green_rug'], 10 * TILE_SIZE, 8 * TILE_SIZE);
-    // Green Bed (top left)
     ctx.drawImage(SpriteCache.decorations['green_bed'], 6 * TILE_SIZE, 5 * TILE_SIZE);
-    // Green Sofa (center right)
     ctx.drawImage(SpriteCache.decorations['green_sofa'], 14 * TILE_SIZE, 8 * TILE_SIZE);
-    // Fireplace (top center wall)
     ctx.drawImage(SpriteCache.decorations['fireplace'], 11 * TILE_SIZE + 16, 3 * TILE_SIZE + 16);
+
+    // RETRO CRT TELEVISION SET (Next to Green Sofa / Walnut Wall)
+    ctx.drawImage(SpriteCache.decorations['tv'], 16 * TILE_SIZE, 4 * TILE_SIZE + 10);
+    ctx.fillStyle = '#ffee00';
+    ctx.font = '9px Silkscreen, cursive';
+    ctx.fillText('TV 📺', 16 * TILE_SIZE, 4 * TILE_SIZE + 4);
 
     // Render Waps the Yellow Dog!
     const wapsSprite = SpriteCache.waps[state.waps.animFrame] || SpriteCache.waps['idle'];
     ctx.drawImage(wapsSprite, state.waps.x, state.waps.y);
 
-    // Waps Name Tag Label
     ctx.fillStyle = '#ffee00';
     ctx.font = '10px Silkscreen, cursive';
     ctx.fillText('Waps 🐶', state.waps.x, state.waps.y - 4);
 
-    // Render Floating Heart Particles ❤️
+    // Floating Heart Particles ❤️
     ctx.fillStyle = '#ff80ab';
     state.waps.hearts.forEach(h => {
       ctx.globalAlpha = Math.max(0, h.alpha);
@@ -870,6 +971,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   const closeShopBtn = document.getElementById('close-shop-btn');
   if (closeShopBtn) closeShopBtn.onclick = closeShopModal;
+
+  const closeTvBtn = document.getElementById('close-tv-btn');
+  if (closeTvBtn) closeTvBtn.onclick = closeTVModal;
 
   const audioBtn = document.getElementById('audio-toggle-btn');
   if (audioBtn) {

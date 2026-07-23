@@ -220,6 +220,32 @@ export function initInteriorTileSprites() {
     ctx.fillText('EXIT', 6, 20);
     SpriteCache.tiles['exit_mat'] = canvas;
   }
+
+  // Retro CRT Television (32x48)
+  {
+    const { canvas, ctx } = createCanvas(32, 48);
+    // Wooden Stand
+    ctx.fillStyle = '#5d4037';
+    ctx.fillRect(4, 28, 24, 20);
+    // TV Cabinet
+    ctx.fillStyle = '#3e2723';
+    ctx.fillRect(2, 4, 28, 24);
+    // TV Screen (Glowing green/blue)
+    ctx.fillStyle = '#1b5e20';
+    ctx.fillRect(5, 7, 18, 18);
+    ctx.fillStyle = '#48bb78';
+    ctx.fillRect(8, 10, 12, 12);
+    // Rabbit Ear Antenna
+    ctx.fillStyle = '#b0bec5';
+    ctx.fillRect(10, 0, 2, 5);
+    ctx.fillRect(20, 0, 2, 5);
+    // Dials & Knobs
+    ctx.fillStyle = '#d7ccc8';
+    ctx.fillRect(25, 9, 3, 3);
+    ctx.fillRect(25, 15, 3, 3);
+
+    SpriteCache.decorations['tv'] = canvas;
+  }
 }
 
 // Master Initialize Function
